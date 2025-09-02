@@ -1,0 +1,16 @@
+# Core scientific stack (install with conda if possible for Windows stability)
+numpy==2.2.6
+scipy==1.15.3
+
+# LangChain ecosystem
+langchain==0.3.26
+langchain-cohere==0.4.5      # Cohere integration
+langchain-pinecone==0.2.8    # Pinecone vector DB integration
+langchain-openai==0.3.24     # Optional: OpenAI integration
+langchain-community==0.3.26  # Community integrations
+
+# Supporting libraries
+flask==3.1.1
+sentence-transformers==4.1.0
+pypdf==5.6.1
+python-dotenv==1.1.0

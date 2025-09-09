@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 from langchain_pinecone import PineconeVectorStore
 from langchain_cohere import CohereEmbeddings, ChatCohere
 from pinecone import Pinecone, ServerlessSpec
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
 
 
 # 1) load & split PDF files

@@ -1,57 +1,80 @@
-from flask import Flask, render_template, jsonify, request
-from src.helper import ChatCohere, local_emb
-from langchain_pinecone import PineconeVectorStore
-from langchain.chains import RetrievalQA
+# app.py
+import os, traceback, json
+from flask import Flask, render_template, request
+
+# load local .env for local testing only (won't be used on Render)
 from dotenv import load_dotenv
-from src.prompt import *
-import os
+load_dotenv()
 
 app = Flask(__name__)
 
-load_dotenv()
-COHERE_API_KEY = os.getenv("COHERE_API_KEY")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-index_name = "medical-chatbot"
+init_error = None
+qa = None  # will hold the RetrievalQA chain if init succeeds
 
-# Vector store with HuggingFace embeddings
-vec_store = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
-    embedding=local_emb
-)
+def init_services():
+    # check required env vars
+    required = ["COHERE_API_KEY", "PINECONE_API_KEY"]
+    missing = [k for k in required if not os.getenv(k)]
+    if missing:
+        raise RuntimeError(f"Missing environment variables: {', '.join(missing)}")
 
-# Retriever
-retriever = vec_store.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 4}
-)
+    # lazy imports (avoid import-time failures)
+    from src.helper import ChatCohere, local_emb
+    from langchain_pinecone import PineconeVectorStore
+    from langchain.chains import RetrievalQA
+    from src.prompt import qa_prompt
 
-# Cohere LLM
-cohere_chat = ChatCohere(
-    cohere_api_key=COHERE_API_KEY,
-    model="command-a-03-2025"
-)
+    index_name = os.getenv("PINECONE_INDEX", "medical-chatbot")
 
-# Retrieval QA with custom prompt
-qa = RetrievalQA.from_chain_type(
-    llm=cohere_chat,
-    retriever=retriever,
-    chain_type="stuff",
-    chain_type_kwargs={"prompt": qa_prompt}
-)
+    # create vector store & retriever
+    vec_store = PineconeVectorStore.from_existing_index(
+        index_name=index_name,
+        embedding=local_emb
+    )
+    retriever = vec_store.as_retriever(search_type="similarity", search_kwargs={"k":4})
+
+    # instantiate LLM (Cohere wrapper in your repo)
+    cohere_chat = ChatCohere(
+        cohere_api_key=os.getenv("COHERE_API_KEY"),
+        model=os.getenv("COHERE_MODEL", "command-a-03-2025")
+    )
+
+    qa_chain = RetrievalQA.from_chain_type(
+        llm=cohere_chat,
+        retriever=retriever,
+        chain_type="stuff",
+        chain_type_kwargs={"prompt": qa_prompt}
+    )
+    return qa_chain
+
+# Attempt to initialize services but don't crash on failure
+try:
+    qa = init_services()
+except Exception:
+    init_error = traceback.format_exc()
+    qa = None
 
 @app.route("/")
 def index():
+    if qa is None:
+        # show a simple page explaining service not ready (avoid exposing secrets)
+        return (
+            "<h2>Service not ready</h2>"
+            "<p>The backend services failed to initialize. Check logs for details.</p>"
+            "<pre>{}</pre>".format(init_error[:1000]), 500
+        )
     return render_template('chat.html')
 
 @app.route("/get", methods=["GET", "POST"])
-def get_response():   # ✅ renamed
-    msg = request.form["msg"]
-    print("User:", msg)
+def get_response():
+    if qa is None:
+        return "Service not available", 503
+    msg = request.form.get("msg", "")
     result = qa({"query": msg})
-    print("Response:", result["result"])
-    return str(result["result"])
+    return str(result.get("result", ""))
 
-import os
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
+
 

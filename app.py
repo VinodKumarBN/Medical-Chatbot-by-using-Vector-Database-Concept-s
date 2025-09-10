@@ -1,5 +1,4 @@
-# streamlit_app.py
-import streamlit as st
+from flask import Flask, render_template, jsonify, request
 from src.helper import ChatCohere, local_emb
 from langchain_pinecone import PineconeVectorStore
 from langchain.chains import RetrievalQA
@@ -7,15 +6,15 @@ from dotenv import load_dotenv
 from src.prompt import *
 import os
 
-# Load API keys
+app = Flask(__name__)
+
 load_dotenv()
 COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-INDEX_NAME = "medical-chatbot"
+index_name = "medical-chatbot"
 
-# Vector store
 vec_store = PineconeVectorStore.from_existing_index(
-    index_name=INDEX_NAME,
+    index_name=index_name,
     embedding=local_emb
 )
 
@@ -24,13 +23,11 @@ retriever = vec_store.as_retriever(
     search_kwargs={"k": 4}
 )
 
-# Cohere LLM
 cohere_chat = ChatCohere(
     cohere_api_key=COHERE_API_KEY,
     model="command-a-03-2025"
 )
 
-# Retrieval QA with custom prompt
 qa = RetrievalQA.from_chain_type(
     llm=cohere_chat,
     retriever=retriever,
@@ -38,18 +35,22 @@ qa = RetrievalQA.from_chain_type(
     chain_type_kwargs={"prompt": qa_prompt}
 )
 
-# ---- Streamlit UI ----
-st.set_page_config(page_title="💊 Medical Chatbot", page_icon="💊")
+@app.route("/")
+def index():
+    return render_template('chat.html')
 
-st.title("💊 Medical Chatbot")
-st.write("Ask me anything about medical topics.")
+@app.route("/get", methods=["GET", "POST"])
+def get_response():
+    msg = request.form["msg"]
+    print("User:", msg)
+    result = qa({"query": msg})
+    print("Response:", result["result"])
+    return str(result["result"])
 
-user_input = st.text_input("Your question:")
+import os
+port = int(os.environ.get("PORT", 5000))
+app.run(host="0.0.0.0", port=port)
 
-if st.button("Ask") and user_input:
-    with st.spinner("Thinking..."):
-        result = qa({"query": user_input})
-    st.success(result["result"])
 
 
 

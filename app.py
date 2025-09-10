@@ -6,6 +6,19 @@ from flask import Flask, render_template, request
 from dotenv import load_dotenv
 load_dotenv()
 
+# streamlit_app.py
+import streamlit as st
+from src.helper import qa
+
+st.title("💊 Medical Chatbot")
+
+user_input = st.text_input("Ask me anything about medical topics:")
+
+if st.button("Ask") and user_input:
+    result = qa({"query": user_input})
+    st.write(result["result"])
+
+
 app = Flask(__name__)
 
 init_error = None

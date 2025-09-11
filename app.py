@@ -8,8 +8,7 @@ from flask import Flask, render_template, request, jsonify
 
 # --- imports that may fail if deps/env missing ---
 # Import them lazily inside init_services() to avoid import-time failures.
-
-app = Flask(_name_)
+app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 # Global state for initialization
@@ -117,7 +116,7 @@ def health():
         "error": (init_state.get("error") or "")[:4000]  # truncated
     })
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     # Ensure we bind to the Render-provided PORT
     port = int(os.environ.get("PORT", 5000))
     logging.info(f"Starting Flask on 0.0.0.0:{port}")

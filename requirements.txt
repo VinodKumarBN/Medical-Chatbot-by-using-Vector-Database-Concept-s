@@ -1,5 +1,5 @@
-flask
-python-dotenv
+flask==3.0.3
+python-dotenv==1.0.1
 langchain==0.3.26
 langchain-cohere==0.4.5
 langchain-pinecone==0.2.8
@@ -7,6 +7,7 @@ langchain-community==0.3.26
 sentence-transformers==3.0.1
 transformers==4.44.2
 torch==2.5.1
+tokenizers==0.19.1
 pypdf==5.6.1
-pinecone-client
-cohere
+pinecone-client==4.1.2
+cohere==5.5.8

@@ -1,3 +1,4 @@
+--only-binary=:all:
 flask==3.0.3
 python-dotenv==1.0.1
 langchain==0.3.26
